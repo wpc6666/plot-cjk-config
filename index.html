@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>macOS 中文绘图配置 · R / Python / Stata</title>
+<meta name="description" content="一键部署 macOS 中文字体与高清出图环境，彻底解决 R、Python、Stata 画图中文变豆腐块（□□□）的问题。默认 300 DPI，自带体检脚本。">
+<meta name="keywords" content="macOS,中文绘图,matplotlib,ggplot2,Stata,中文字体,PingFang,Arial Unicode MS,数学符号,豆腐块,乱码,300DPI,科研绘图">
+<meta name="author" content="白澤 程">
+<meta name="google-site-verification" content="googlefbef38d4f16a4ff0.html">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC','Hiragino Sans GB','Microsoft YaHei',sans-serif;background:#f5f5f7;color:#333;line-height:1.7}
+.container{max-width:920px;margin:0 auto;padding:48px 20px}
+.header{text-align:center;margin-bottom:56px}
+.header h1{font-size:34px;color:#1d1d1f;margin-bottom:14px;letter-spacing:-.5px}
+.header .sub{font-size:17px;color:#666;max-width:640px;margin:0 auto}
+.badges{margin-top:20px;display:flex;gap:8px;justify-content:center;flex-wrap:wrap}
+.badges img{height:22px}
+.btn-row{margin-top:28px;display:flex;gap:12px;justify-content:center;flex-wrap:wrap}
+.btn{display:inline-block;padding:11px 24px;border-radius:9px;text-decoration:none;font-size:15px;font-weight:500;transition:.2s}
+.btn-primary{background:#667eea;color:#fff}
+.btn-primary:hover{background:#5568d3}
+.btn-dark{background:#24292e;color:#fff}
+.btn-dark:hover{background:#3a4046}
+.section{margin-bottom:52px}
+.section-title{font-size:23px;color:#1d1d1f;border-left:4px solid #667eea;padding-left:14px;margin-bottom:22px}
+.card{background:#fff;border-radius:14px;padding:26px;box-shadow:0 2px 12px rgba(0,0,0,.07);margin-bottom:16px}
+.card h3{font-size:17px;color:#1d1d1f;margin-bottom:10px}
+.card p{font-size:15px;color:#555}
+.problem-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:14px}
+.problem{background:#fff;border-radius:12px;padding:20px;box-shadow:0 2px 10px rgba(0,0,0,.06);border-top:3px solid #ff6b6b}
+.problem .tool{font-weight:600;color:#1d1d1f;margin-bottom:8px;font-size:15px}
+.problem .desc{font-size:13.5px;color:#666}
+pre{background:#1d1d1f;color:#e6e6e6;border-radius:10px;padding:18px 20px;overflow-x:auto;font-size:13.5px;line-height:1.65;font-family:'SF Mono',Menlo,Monaco,Consolas,monospace}
+pre .c{color:#7d8590}
+pre .k{color:#79c0ff}
+pre .s{color:#a5d6ff}
+pre .o{color:#7ee787}
+code{background:#eef0f3;padding:2px 7px;border-radius:5px;font-size:13.5px;font-family:'SF Mono',Menlo,Monaco,Consolas,monospace;color:#c7254e}
+table{width:100%;border-collapse:collapse;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 2px 10px rgba(0,0,0,.06);font-size:14.5px}
+th{background:#f0f2f5;padding:13px 15px;text-align:left;font-weight:600;color:#1d1d1f;border-bottom:2px solid #e1e4e8}
+td{padding:12px 15px;border-bottom:1px solid #eee;color:#555;vertical-align:top}
+tr:last-child td{border-bottom:none}
+.ok{color:#1a7f37;font-weight:600}
+.bad{color:#cf222e;font-weight:600}
+.mono{font-family:'SF Mono',Menlo,Monaco,Consolas,monospace;font-size:13px}
+.footer{text-align:center;margin-top:64px;padding-top:28px;border-top:1px solid #ddd;color:#999;font-size:14px}
+.footer a{color:#007acc;text-decoration:none}
+.footer a:hover{text-decoration:underline}
+/* 表格横向滚动容器：手机上不撑宽页面，可左右滑动 */
+.table-wrap{position:relative;overflow-x:auto;-webkit-overflow-scrolling:touch;border-radius:12px}
+.table-wrap table{min-width:520px}
+/* 右侧渐变遮罩，提示「还能往右滑」，滑到底自动消失 */
+.table-wrap::after{content:"";position:absolute;top:0;right:0;width:28px;height:100%;pointer-events:none;
+  background:linear-gradient(to right,rgba(255,255,255,0),rgba(255,255,255,.92));transition:opacity .2s}
+.table-wrap.scrolled-end::after{opacity:0}
+/* 左侧渐变，提示「左边还有内容」 */
+.table-wrap.scrolled-start::after{background:linear-gradient(to right,rgba(255,255,255,0),rgba(255,255,255,.92))}
+@media(max-width:768px){
+  .container{padding:32px 16px}
+  .header{margin-bottom:40px}
+  .header h1{font-size:26px}
+  .header .sub{font-size:15px}
+  .section{margin-bottom:38px}
+  .section-title{font-size:19px;padding-left:11px;margin-bottom:16px}
+  pre{font-size:12px;padding:14px 15px;border-radius:8px}
+  code{font-size:12px;word-break:break-word}
+  table{font-size:12.5px;border-radius:10px}
+  th,td{padding:9px 10px}
+  .card{padding:18px}
+  .problem-grid{grid-template-columns:1fr}
+  .btn{padding:12px 22px}
+  .mono{font-size:11.5px;word-break:break-all}
+  /* 手机竖屏：保持表格，靠容器横向滚动；给个明确提示 */
+  .table-wrap{overflow-x:auto}
+  /* 仅当表格真的放不下（需要横滑）时才显示提示 */
+  .table-wrap.is-scrollable::before{content:"← 左右滑动查看完整表格 →";display:block;font-size:11px;color:#999;
+    text-align:center;padding:6px 0 2px;letter-spacing:.3px}
+  .table-wrap::before{content:none}
+  .table-wrap table{min-width:340px}
+  .table-wrap table th,.table-wrap table td{white-space:normal;word-break:break-word}
+}
+</style>
+</head>
+<body>
+<div class="container">
+
+  <div class="header">
+    <h1>macOS 中文绘图配置</h1>
+    <p class="sub">R / Python / Stata 三套工具链一次配好，彻底告别中文豆腐块（□□□）。默认 300 DPI，自带体检脚本站。</p>
+    <div class="badges">
+      <img src="https://img.shields.io/badge/Platform-macOS-000000?logo=apple" alt="macOS">
+      <img src="https://img.shields.io/badge/R-4.6-276DC3?logo=r" alt="R">
+      <img src="https://img.shields.io/badge/Python-3.x-3776AB?logo=python" alt="Python">
+      <img src="https://img.shields.io/badge/Stata-18-1A5276" alt="Stata">
+      <img src="https://img.shields.io/badge/License-MIT-blue" alt="MIT">
+    </div>
+    <div class="btn-row">
+      <a href="https://github.com/wpc6666/plot-cjk-config" class="btn btn-dark">GitHub 仓库</a>
+      <a href="#quickstart" class="btn btn-primary">快速开始</a>
+    </div>
+  </div>
+
+  <div class="section">
+    <h2 class="section-title">🤔 为什么会出方框</h2>
+    <p style="font-size:15.5px;color:#555;margin-bottom:20px">默认配置下画中文图会出方框（□□□）。原因不是"没装字体"，而是三套工具链各有各的坑：</p>
+    <div class="problem-grid">
+      <div class="problem">
+        <div class="tool">R · pdf()</div>
+        <div class="desc">不嵌中文字体，只塞 Helvetica。中文全丢，报 <span class="mono">conversion failure in 'mbcsToSbcs'</span></div>
+      </div>
+      <div class="problem">
+        <div class="tool">R · cairo_pdf()</div>
+        <div class="desc">按 family 精确匹配，<strong>不做字形回退</strong>。基座是英文字体时，含中文的元素全变 □</div>
+      </div>
+      <div class="problem">
+        <div class="tool">Python · matplotlib</div>
+        <div class="desc">字体缓存在 <span class="mono">~/.matplotlib/fontlist-*.json</span>，过期就不认新字体，悄悄回退 DejaVu</div>
+      </div>
+      <div class="problem">
+        <div class="tool">Stata · graph export</div>
+        <div class="desc">只设 <span class="mono">fontface</span> 一项，另外 4 项仍是 Helvetica。刻度、注释回退 → □</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="section" id="quickstart">
+    <h2 class="section-title">🚀 快速开始</h2>
+    <pre><span class="c"># 1. 下载脚本</span>
+curl -O https://raw.githubusercontent.com/wpc6666/plot-cjk-config/main/setup_plot.sh
+chmod +x setup_plot.sh
+
+<span class="c"># 2. 部署（交互菜单）</span>
+bash setup_plot.sh
+
+<span class="c"># 3. 体检（推荐每次改完配置都跑）</span>
+bash setup_plot.sh check</pre>
+    <p style="font-size:14.5px;color:#666;margin-top:16px"><code>check</code> 会真实出图并检查 PNG / PDF 里的中文墨迹，<strong>全绿才算过</strong>：</p>
+    <pre style="background:#0d1117">R 自检: <span class="o">PASS</span>
+  png            <span class="o">OK</span>
+  pdf            <span class="o">OK</span>
+  svg            <span class="o">OK</span>
+  base           <span class="o">OK</span>
+  ggsave_png     <span class="o">OK</span>
+  ggsave_pdf     <span class="o">OK</span>
+Python 自检: <span class="o">PASS</span>
+  [mpl_setup] check_cn: 字体=<span class="k">Arial Unicode MS</span> 缺字警告=<span class="o">0</span>
+Stata 自检: <span class="o">PASS</span>
+[<span class="o">OK</span>] 全部通过：三套工具链中文均无豆腐块</pre>
+  </div>
+
+  <div class="section">
+    <h2 class="section-title">✨ 装完就有的东西</h2>
+    <div class="table-wrap" data-scroll-hint><table>
+      <thead><tr><th>功能</th><th>R</th><th>Python</th><th>Stata</th></tr></thead>
+      <tbody>
+        <tr><td>中文字体</td><td><code>Arial Unicode MS</code></td><td><code>Arial Unicode MS</code></td><td><code>Arial Unicode MS</code></td></tr>
+        <tr><td>输出目录</td><td><code>&lt;项目根&gt;/figures/</code></td><td><code>&lt;项目根&gt;/figures/</code></td><td><code>$PLOT_OUTDIR</code></td></tr>
+        <tr><td>默认 DPI</td><td>300（9×6in → 2700×1800）</td><td>300（9×6in → 2734×1834）</td><td>2400×1440</td></tr>
+        <tr><td>一键存图</td><td><code>sp(p, "fig1", format="pdf")</code></td><td><code>mp.save(fig, "fig1")</code></td><td><code>gsp g1, out(fig1)</code></td></tr>
+        <tr><td>自检</td><td><code>check_cn_plot()</code></td><td><code>mp.check_cn()</code></td><td>—</td></tr>
+      </tbody>
+    </table></div>
+  </div>
+
+  <div class="section">
+    <h2 class="section-title">🚨 十条铁律（违反必出方框）</h2>
+    <div class="table-wrap" data-scroll-hint><table>
+      <thead><tr><th style="width:52px">#</th><th>规则</th><th>违反后果</th></tr></thead>
+      <tbody>
+        <tr><td>1</td><td>R 出 PDF 写 <code>pdf(...)</code>，<strong>不要</strong>写 <code>grDevices::pdf(...)</code></td><td>绕过 cairo 重定向 → 中文全框</td></tr>
+        <tr><td>2</td><td><strong>不要</strong>给 <code>ragg::agg_png()</code> 传 <code>system_fonts=</code></td><td>ragg 1.5.2 没这参数 → 直接报错</td></tr>
+        <tr><td>3</td><td>ggplot 的 <code>base_family</code> 必须是中文字体</td><td>cairo 不做回退 → 轴标题全框</td></tr>
+        <tr><td>4</td><td><code>ggsave()</code> 存 PDF 必须传 <code>device = .ggsave_pdf_device</code></td><td>报 <code>invalid font type</code></td></tr>
+        <tr><td>5</td><td>Python 绘图要 <code>import mpl_setup</code></td><td>没有真粗体，字体可能落 DejaVu</td></tr>
+        <tr><td>6</td><td>matplotlib <strong>不要</strong>设 <code>pdf.fonttype = 42</code></td><td>PingFang 是 CFF 轮廓 → 畸形 PDF</td></tr>
+        <tr><td>7</td><td><strong>不要</strong>写字体名 <code>Source Han Sans SC</code></td><td>本机无此字体 → 假命中 Helvetica → 出框且<strong>不报错</strong></td></tr>
+        <tr><td>8</td><td>Stata 矢量图用 <strong>PDF</strong>，<strong>不要</strong>用 EPS</td><td>中文必变 <code>??</code></td></tr>
+        <tr><td>9</td><td>Stata <strong>不要</strong>导出 TIF</td><td><code>translator Graph2tif not found</code></td></tr>
+        <tr><td>10</td><td>Stata 字体设满 5 子项：<code>fontface</code>/<code>fontfacesans</code>/<code>fontfaceserif</code>/<code>fontfacemono</code>/<code>fontfacesymbol</code></td><td>少写 <code>face</code> <strong>不报错但静默失效</strong></td></tr>
+      </tbody>
+    </table></div>
+  </div>
+
+  <div class="section">
+    <h2 class="section-title">🔬 实测依据</h2>
+    <p style="font-size:15.5px;color:#555;margin-bottom:18px">同一个中文标题在 PDF 里的墨迹像素数（越接近 0 越说明字没画出来）。<span class="mono">pdf.fonttype=42</span> 下：</p>
+    <div class="table-wrap" data-scroll-hint><table>
+      <thead><tr><th>字体</th><th>墨迹像素</th><th>轮廓格式</th><th>结论</th></tr></thead>
+      <tbody>
+        <tr><td><strong>PingFang SC</strong></td><td class="bad">0</td><td>CFF</td><td>文字层正确但<strong>视觉全空</strong>，最阴的一类 bug</td></tr>
+        <tr><td>Songti SC</td><td class="ok">1195</td><td>TrueType</td><td>正常</td></tr>
+        <tr><td>Heiti SC</td><td class="ok">1344</td><td>TrueType</td><td>正常</td></tr>
+        <tr><td>Arial Unicode MS</td><td class="ok">1378</td><td>TrueType</td><td>正常</td></tr>
+        <tr><td>Noto Sans SC</td><td class="ok">748</td><td>TrueType</td><td>正常，但只有 weight 100，偏细</td></tr>
+      </tbody>
+    </table></div>
+    <div class="card" style="margin-top:18px">
+      <h3>关键差异：ragg 会回退，cairo 不会</h3>
+      <p><strong>ragg（PNG）</strong>有自动字形回退，基座是英文字体也能渲染中文 → PNG 天然安全。<br>
+      <strong>cairo（PDF）</strong>精确匹配字体，缺字就画框 → PDF 是重灾区。<br>
+      所以本项目<strong>保持 <code>pdf.fonttype</code> 默认值 3</strong>。</p>
+    </div>
+  </div>
+
+  <div class="section">
+    <h2 class="section-title">🕳️ 踩过的坑（不报错但静默失效）</h2>
+    <div class="card">
+      <h3>1 · <code>Source Han Sans SC</code> 假命中</h3>
+      <p><code>systemfonts::match_fonts("Source Han Sans SC")</code> 返回 <code>/System/Library/Fonts/Helvetica.ttc</code>。不存在的字体名被"宽容"匹配到英文字体，图出来全是 □，零报错。</p>
+    </div>
+    <div class="card">
+      <h3>2 · <code>register_font()</code> 对 cairo 无效</h3>
+      <p>用 <code>systemfonts::register_font(name="sans", ...)</code> 看似注册成功，但 <code>cairo_pdf()</code> 实际还是 Helvetica。cairo 设备不读 systemfonts 注册表，必须显式传 <code>family=</code>。</p>
+    </div>
+    <div class="card">
+      <h3>3 · PingFang 放在奇怪的位置</h3>
+      <p><code>PingFang.ttc</code> 不在 <code>/System/Library/Fonts</code>，而在 <code>/System/Library/AssetsV2/...</code>。R 走 fontconfig 能扫到，<strong>matplotlib 扫不到</strong>，必须用 <code>fm.fontManager.addfont()</code> 手动注册。</p>
+    </div>
+    <div class="card">
+      <h3>4 · <code>.Renviron</code> 盖掉 shell 的 export</h3>
+      <p>测试新 profile 必须用 <code>Rscript --no-environ</code>，否则加载的还是旧的那个。</p>
+    </div>
+    <div class="card">
+      <h3>5 · Stata <code>graph set pdf</code> 是空操作</h3>
+      <p>只有 <code>window</code>/<code>ps</code>/<code>eps</code>/<code>svg</code> 四个有效目标，PDF 导出实际走 <code>ps</code>。</p>
+    </div>
+  </div>
+
+  <div class="section">
+    <h2 class="section-title">📂 仓库结构</h2>
+    <pre>plot-cjk-config/
+├── setup_plot.sh              <span class="c"># 一键部署脚本（自包含，1386 行）</span>
+├── R/.Rprofile                <span class="c"># R 绘图 + 性能配置</span>
+├── matplotlib/matplotlibrc    <span class="c"># matplotlib 全局配置</span>
+├── python/mpl_setup.py        <span class="c"># Python 绘图辅助</span>
+└── Stata/
+    ├── plot_stata.do          <span class="c"># 字体配置（5 子项 × 4 目标）</span>
+    └── profile_main.do        <span class="c"># 性能配置 + gsp 存图</span></pre>
+  </div>
+
+  <div class="section">
+    <h2 class="section-title">❓ 常见问题</h2>
+    <div class="card">
+      <h3>装完后 RStudio 里还是方框？</h3>
+      <p>重启 RStudio。<code>.Rprofile</code> 只在启动时读一次。</p>
+    </div>
+    <div class="card">
+      <h3>Jupyter 里字体不对？</h3>
+      <p>确认 <code>import mpl_setup</code> 在 <code>import matplotlib.pyplot</code> <strong>之前</strong>。<code>mpl_setup</code> 会在导入时强制刷新 <code>rcParams</code>。</p>
+    </div>
+    <div class="card">
+      <h3>装了新字体，matplotlib 不认？</h3>
+      <p><code>rm -rf ~/.matplotlib/fontlist-*.json</code>，或直接 <code>import mpl_setup</code>（它会主动扫描并注册）。</p>
+    </div>
+    <div class="card">
+      <h3>为什么不用思源黑体？</h3>
+      <p>装了也能用，但本项目的默认选择是<strong>系统自带、零安装</strong>。思源黑体可变字体只有 weight 250，Noto Sans SC 只有 100，都会让标题异常纤细。<strong>Arial Unicode MS</strong> 覆盖 100–400，且是 macOS 上唯一同时覆盖<strong>中文与数学符号</strong>（ρ √ → ∞ ≤ ≥）的系统字体——PingFang 字形更美但缺数学符号，画统计图会出方框。</p>
+    </div>
+    <div class="card">
+      <h3>Linux / Windows 能用吗？</h3>
+      <p>不能。脚本开头有平台检查，只支持 macOS。</p>
+    </div>
+  </div>
+
+  <div class="footer">
+    <p>© 2026 白澤 程 · MIT License</p>
+    <p style="margin-top:12px">
+      <a href="https://github.com/wpc6666/plot-cjk-config">GitHub</a> ·
+      <a href="https://wpc6666.github.io/">主页</a> ·
+      <a href="https://github.com/wpc6666">@wpc6666</a>
+    </p>
+  </div>
+
+</div>
+<script>
+/* 手机端表格转卡片：把表头文字注入到每个 td 的 data-label，
+   这样堆叠后每一行仍能看出「这一格是哪一列的」 */
+document.querySelectorAll('.table-wrap table').forEach(function (tbl) {
+  var heads = [].map.call(tbl.querySelectorAll('thead th'), function (th) {
+    return th.textContent.trim();
+  });
+  if (!heads.length) return;
+  tbl.querySelectorAll('tbody tr').forEach(function (tr) {
+    [].forEach.call(tr.children, function (td, i) {
+      if (i > 0 && heads[i]) td.setAttribute('data-label', heads[i] + '：');
+    });
+  });
+});
+
+document.querySelectorAll('.table-wrap[data-scroll-hint]').forEach(function (w) {
+  function upd() {
+    var atEnd = w.scrollLeft + w.clientWidth >= w.scrollWidth - 2;
+    var atStart = w.scrollLeft <= 2;
+    w.classList.toggle('scrolled-end', atEnd);
+    w.classList.toggle('scrolled-start', atStart);
+    /* 只有真的溢出才提示可横滑 */
+    w.classList.toggle('is-scrollable', w.scrollWidth - w.clientWidth > 1);
+  }
+  w.addEventListener('scroll', upd, { passive: true });
+  window.addEventListener('resize', upd);
+  window.addEventListener('orientationchange', upd);
+  /* 窗口 resize 在部分环境（设备模拟、分屏）不触发，用 ResizeObserver 兜底 */
+  if (window.ResizeObserver) new ResizeObserver(upd).observe(w);
+  upd();
+});
+</script>
+</body>
+</html>
