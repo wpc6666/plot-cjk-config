@@ -1,0 +1,53 @@
+# matplotlibrc — 中文绘图配置 v15.0（2026-10-21 生成）
+# 由 setup_plot.sh 管理，手工改动会被下次部署覆盖。
+# 备份在 ~/Documents/plot-config/backup/
+
+# ── 字体 ─────────────────────────────────────────────────────
+font.family        : sans-serif
+# 【v15.0】排序依据改为「符号覆盖率」，不再按字重：
+#   Arial Unicode MS        中文 + ρ√→∞≤≥±×≈∂∈∪∩ 全符号覆盖  ← 首选
+#   Hiragino Sans GB        中文正常、基础符号正常，生僻符号出框
+#   PingFang SC             weight 100-600 粗体真生效，但数学符号全缺
+#   Heiti SC                weight 300,400，真 glyf 轮廓
+#   Songti SC               weight 300-900，唯一有真 bold 的衬线体
+#   Noto Sans SC            本机只有 weight 100（Thin）→ 标题发虚、bold 失效
+#   Source Han Sans VF      本机只有 weight 250（ExtraLight）→ 同上
+# matplotlib 不做逐字形回退，只按首位取字。统计图标题里 ρ √ → ∞ 是
+# 高频符号，所以「不缺字」优先于「字形好看」。
+# 注意：不要写 "Source Han Sans SC"，本机无此字体，
+#       fc-match 会假命中 Helvetica.ttc，中文直接出框。
+font.sans-serif    : Arial Unicode MS, Hiragino Sans GB, PingFang SC, Heiti SC, Songti SC, Arial Unicode MS, Noto Sans SC, Source Han Sans VF, DejaVu Sans, sans-serif
+
+# 负号：False 才会显示 U+2212 而不是方块
+axes.unicode_minus : False
+
+# ── 尺寸与分辨率 ─────────────────────────────────────────────
+figure.dpi         : 150      # 屏幕预览
+savefig.dpi        : 300       # 保存文件（高清）
+figure.figsize     : 9, 6
+savefig.bbox       : tight
+savefig.pad_inches : 0.1
+savefig.facecolor  : white
+
+# ── 排版 ─────────────────────────────────────────────────────
+figure.autolayout  : False
+figure.subplot.left   : 0.12
+figure.subplot.right  : 0.95
+figure.subplot.bottom : 0.12
+figure.subplot.top    : 0.92
+
+font.size          : 11
+axes.titlesize     : 13
+axes.titleweight   : bold
+axes.labelsize     : 11
+xtick.labelsize    : 10
+ytick.labelsize    : 10
+legend.fontsize    : 10
+
+# ── 输出格式 ─────────────────────────────────────────────────
+# pdf.fonttype 保持默认 3，不要设 42：
+#   PingFang SC 是 CFF 轮廓，写 42 会生成「名义 Type42、实际 CFF」的畸形
+#   PDF，MuPDF 系渲染器（pymupdf / 部分在线阅读器 / 部分投稿系统）里
+#   中文整段消失，但 Preview 和 Ghostscript 却正常，极难排查。
+# svg.fonttype=none 保留 <text>，否则文字全转曲，搜不到也改不了字体。
+svg.fonttype       : none
