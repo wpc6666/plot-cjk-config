@@ -1,4 +1,4 @@
-"""matplotlib 中文绘图助手  ${SCRIPT_VERSION}
+"""matplotlib 中文绘图助手  v15.0
 
 用法（建议在 import matplotlib.pyplot 之前 import 本模块）：
 
@@ -27,6 +27,7 @@
 from __future__ import annotations
 
 import os
+import tempfile
 from pathlib import Path
 
 import matplotlib
@@ -211,15 +212,21 @@ def check_cn() -> bool:
     with warnings.catch_warnings(record=True) as caught:
         warnings.simplefilter("always")
         fig, ax = plt.subplots(figsize=(6, 3))
-        ax.plot([1, 2, 3], [1, 2, 3])
-        ax.set_title("中文标题：经济增速（%）", fontweight="bold")
-        ax.set_xlabel("年份（年）")
-        ax.set_ylabel("增速（%）")
-        ax.annotate("注释 −1.5", (2, 1.5))
-        tmp = OUTDIR / "_cn_check.png"
-        fig.savefig(tmp, dpi=120)
-        plt.close(fig)
-        tmp.unlink(missing_ok=True)
+        tmp = None
+        try:
+            ax.plot([1, 2, 3], [1, 2, 3])
+            ax.set_title("中文标题：经济增速（%）", fontweight="bold")
+            ax.set_xlabel("年份（年）")
+            ax.set_ylabel("增速（%）")
+            ax.annotate("注释 −1.5", (2, 1.5))
+            fd, tmp_name = tempfile.mkstemp(prefix=".cn-check-", suffix=".png", dir=OUTDIR)
+            os.close(fd)
+            tmp = Path(tmp_name)
+            fig.savefig(tmp, dpi=120)
+        finally:
+            plt.close(fig)
+            if tmp is not None:
+                tmp.unlink(missing_ok=True)
 
     missing = [str(w.message) for w in caught
                if "missing from font" in str(w.message).lower()

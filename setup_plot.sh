@@ -91,9 +91,11 @@ err()  { log ERROR "$@" >&2; }
 # 环境探测
 # --------------------------------------------------------------
 case "${SHELL:-}" in
-  */zsh)  RC="${HOME}/.zshrc" ;;
-  */bash) RC="${HOME}/.bash_profile" ;;
-  *)      RC="${HOME}/.profile" ;;
+  */zsh) RC="${HOME}/.zshrc" ;;
+  *)
+    # write_shell_rc 当前生成的是 zsh 专用语法，不能安全写入 Bash/profile。
+    RC=""
+    ;;
 esac
 
 export PLOT_DPI="${PLOT_DPI:-300}"
@@ -199,26 +201,54 @@ find_python() {
 }
 
 find_stata() {
-  local roots=("/Applications/Stata" "/Applications" "/Applications/Stata18"
-               "/Applications/Stata18/Stata" "/Applications/StataNow" "${HOME}/Applications")
-  local apps=(StataMP StataSE StataBE Stata)
+  # macOS 的 Stata 可能装成 /Applications/Stata/StataMP.app（嵌套），
+  # 也可能平铺成 /Applications/StataMP.app；两种都要覆盖。
+  local roots
+  if [[ -n "${DEVCONFIG_APP_ROOTS:-}" ]]; then
+    IFS=':' read -r -a roots <<< "${DEVCONFIG_APP_ROOTS}"
+  else
+    roots=("/Applications" "${HOME}/Applications")
+  fi
   local exes=(stata-mp stata-se stata-be stata StataMP StataSE StataBE Stata)
-  local r a e p
-  for r in "${roots[@]}"; do
-    [[ -d "$r" ]] || continue
-    for a in "${apps[@]}"; do
-      [[ -d "$r/${a}.app" ]] || continue
-      for e in "${exes[@]}"; do
-        p="$r/${a}.app/Contents/MacOS/$e"
-        [[ -x "$p" ]] && { echo "$p"; return; }
+  local root app exe found
+  for root in "${roots[@]}"; do
+    [[ -d "$root" ]] || continue
+    while IFS= read -r app; do
+      [[ -n "$app" ]] || continue
+      for exe in "${exes[@]}"; do
+        found="$app/Contents/MacOS/$exe"
+        [[ -x "$found" ]] && { printf '%s\n' "$found"; return 0; }
+      done
+    done < <(find "$root" -maxdepth 5 -type d \
+      \( -name 'StataMP.app' -o -name 'StataSE.app' -o -name 'StataBE.app' \
+         -o -name 'Stata.app' -o -name 'StataNow.app' \) -print 2>/dev/null | sort -u)
+  done
+
+  # 少数旧安装不是 .app 结构（/Applications/Stata18/StataMP 等），保留兜底。
+  local legacy_roots
+  if [[ -n "${DEVCONFIG_APP_ROOTS:-}" ]]; then
+    legacy_roots=("${roots[@]}")
+  else
+    legacy_roots=(/Applications/Stata /Applications/Stata18 /Applications/Stata18/Stata /Applications/StataNow "${HOME}/Applications")
+  fi
+  local apps=(StataMP StataSE StataBE Stata)
+  for root in "${legacy_roots[@]}"; do
+    [[ -d "$root" ]] || continue
+    for app in "${apps[@]}"; do
+      for exe in "${exes[@]}"; do
+        found="$root/$app/$exe"
+        [[ -x "$found" ]] && { printf '%s\n' "$found"; return 0; }
+        found="$root/$app.app/Contents/MacOS/$exe"
+        [[ -x "$found" ]] && { printf '%s\n' "$found"; return 0; }
       done
     done
   done
+
   local c
   for c in stata-mp stata-se stata-be stata; do
-    command -v "$c" &>/dev/null && { command -v "$c"; return; }
+    command -v "$c" >/dev/null 2>&1 && { command -v "$c"; return 0; }
   done
-  echo ""
+  printf ''
 }
 
 CN_FONT="$(detect_font)"
@@ -242,10 +272,27 @@ snapshot() {
   mkdir -p "$SNAP"
   local f
   for f in "$MPL_RC" "$R_PROF" "$PY_MOD" "$ST_MAIN" "$ST_PLOT" "$RENV"; do
-    [[ -f "$f" ]] && cp -p "$f" "${SNAP}/" 2>/dev/null || true
+    if [[ -e "$f" || -L "$f" ]]; then
+      cp -p "$f" "${SNAP}/" || { err "备份失败：${f}"; return 1; }
+    fi
   done
-  [[ -f "$ST_BRIDGE" ]] && cp -p "$ST_BRIDGE" "${SNAP}/profile.do" 2>/dev/null || true
-  [[ -f "$RC" ]] && cp -p "$RC" "${SNAP}/$(basename "$RC")" 2>/dev/null || true
+  if [[ -e "$ST_BRIDGE" || -L "$ST_BRIDGE" ]]; then
+    cp -p "$ST_BRIDGE" "${SNAP}/profile.do" || { err "备份失败：${ST_BRIDGE}"; return 1; }
+  fi
+  if [[ -n "$RC" && ( -e "$RC" || -L "$RC" ) ]]; then
+    cp -p "$RC" "${SNAP}/$(basename "$RC")" || { err "备份失败：${RC}"; return 1; }
+  fi
+  local ado_dir="${HOME}/Documents/Stata/ado/personal" a
+  if [[ "$MODE" != uninstall ]]; then
+    for a in gsp set_plot_dir freemem; do
+      if [[ -e "${ado_dir}/${a}.ado" || -L "${ado_dir}/${a}.ado" ]]; then
+        cp -p "${ado_dir}/${a}.ado" "${SNAP}/${a}.ado" || { err "备份失败：${ado_dir}/${a}.ado"; return 1; }
+      fi
+    done
+  fi
+  if [[ -f "${BAK}/managed-ado.tsv" ]]; then
+    cp -p "${BAK}/managed-ado.tsv" "${SNAP}/managed-ado.tsv" || { err "备份失败：${BAK}/managed-ado.tsv"; return 1; }
+  fi
   # 【删除守卫】这里原本会自动 rm -rf 掉超过 KEEP_BAK 份的旧备份。
   # 按用户 AGENTS.md 的「严禁自主推断并执行永久删除」，改为【只提示不删除】：
   # 备份是安全网，安全网不该自己动手剪。要清理由用户手动确认后执行。
@@ -263,9 +310,53 @@ snapshot() {
 
 w() { # w <目标路径> <标注>
   [[ "$MODE" == dry-run ]] && { info "[DRY] 写入 ${1}"; cat >/dev/null; return; }
-  mkdir -p "$(dirname "$1")"
-  cat > "$1"
+  local target="$1" dir tmp
+  dir="$(dirname "$target")"
+  mkdir -p "$dir"
+  tmp="$(mktemp "${dir}/.plot-config-write.XXXXXX")"
+  cat > "$tmp"
+  if [[ -L "$target" ]]; then
+    if cmp -s "$tmp" "$target"; then
+      rm -f "$tmp"
+      info "已是目标内容，保留符号链接 ${target}"
+      return 0
+    fi
+    rm -f "$tmp"
+    err "拒绝覆盖符号链接 ${target}（其指向文件不属于配置目录）"
+    return 1
+  fi
+  if [[ -e "$target" && ! -f "$target" ]]; then
+    rm -f "$tmp"
+    err "拒绝覆盖非普通文件 ${target}"
+    return 1
+  fi
+  if [[ -e "$target" ]]; then
+    cp -p "$target" "${SNAP}/$(basename "$target")" || { rm -f "$tmp"; err "备份失败：${target}"; return 1; }
+  fi
+  cat "$tmp" > "$target"
+  rm -f "$tmp"
   ok "写入 ${1}"
+}
+
+write_ado_manifest() {
+  [[ "$MODE" == dry-run ]] && return 0
+  local dir="${HOME}/Documents/Stata/ado/personal" name hash tmp old_hash old_snap saved_snap
+  tmp="$(mktemp "${BAK}/.managed-ado.XXXXXX")"
+  for name in freemem set_plot_dir gsp; do
+    hash="$(shasum -a 256 "${dir}/${name}.ado" | awk '{print $1}')" || { rm -f "$tmp"; err "无法计算 ${name}.ado 校验值"; return 1; }
+    saved_snap="$SNAP"
+    if [[ -f "${BAK}/managed-ado.tsv" ]]; then
+      old_hash="$(awk -F '\t' -v n="$name" '$1 == n { print $2; exit }' "${BAK}/managed-ado.tsv")"
+      old_snap="$(awk -F '\t' -v n="$name" '$1 == n { print $3; exit }' "${BAK}/managed-ado.tsv")"
+      # 更新时若 ado 仍与上次生成版本一致，就沿用首次安装备份，避免把
+      # 脚本自己的旧版本误认为用户原文件，卸载后又残留旧版。
+      if [[ -f "${SNAP}/${name}.ado" && "$(shasum -a 256 "${SNAP}/${name}.ado" | awk '{print $1}')" == "$old_hash" && -n "$old_snap" && -d "$old_snap" ]]; then
+        saved_snap="$old_snap"
+      fi
+    fi
+    printf '%s\t%s\t%s\n' "$name" "$hash" "$saved_snap" >> "$tmp"
+  done
+  mv "$tmp" "${BAK}/managed-ado.tsv"
 }
 
 # --------------------------------------------------------------
@@ -273,7 +364,7 @@ w() { # w <目标路径> <标注>
 # --------------------------------------------------------------
 write_matplotlibrc() {
   w "$MPL_RC" <<EOF
-# matplotlibrc — 中文绘图配置 ${SCRIPT_VERSION}（$(date '+%Y-%m-%d') 生成）
+# matplotlibrc — 中文绘图配置 ${SCRIPT_VERSION}
 # 由 setup_plot.sh 管理，手工改动会被下次部署覆盖。
 # 备份在 ~/Documents/plot-config/backup/
 
@@ -344,9 +435,9 @@ write_rprofile() {
 #      ragg 本身对缺失字形会自动回退，不需要手动指定字体链。
 #   2. pdf() 重定向到 cairo_pdf(family=cn_font)。默认 pdf() 只嵌 Helvetica，
 #      中文全部变豆腐块，且报 "conversion failure ... in 'mbcsToSbcs'"。
-#   3. 中文字体优先 PingFang SC。Noto Sans SC 实测 weight=100（Thin）、
-#      Source Han Sans VF 实测 weight=250（ExtraLight），放首位会发烧、
-#      且粗体完全失效。PingFang SC 覆盖 100-600，粗细正常。
+#   3. 中文字体优先 Arial Unicode MS，保证统计图中的数学符号有字形；
+#      PingFang SC / Heiti SC 作为中文和字重候选。Noto Sans SC 实测 weight=100
+#      （Thin）、Source Han Sans VF 实测 weight=250（ExtraLight），不优先使用。
 #   4. 【v15.0】PingFang SC 没有收录 ρ √ → ∞ ≤ ≥ ± × 等数学符号！
 #      而 R 的 Quartz/cairo 设备【不做逐字形回退】——一段文字用哪个
 #      family，该字体缺的字就直接画空心方框，不会自动换字体补。
@@ -379,6 +470,20 @@ options(scipen = 999)
   max(1L, nc - 1L)
 })
 options(Ncpus = .n_threads)
+
+# ---------------- CRAN 镜像源（启动阶段不联网，避免拖慢 R 启动） ----------------
+# 由 DevConfig/mirrors.sh 与本文件共同持有：setup_plot.sh 会整体重写本文件，
+# 所以国内源必须写在这里，而不是事后追加 —— 否则每次重建都被冲掉。
+local({
+  .repos <- getOption("repos")
+  .current <- unname(.repos["CRAN"])
+  if (!length(.current) || is.na(.current) || .current == "@CRAN@") {
+    .cran <- Sys.getenv("DEVCONFIG_CRAN_MIRROR", "https://mirrors.tuna.tsinghua.edu.cn/CRAN/")
+    options(repos = c(CRAN = .cran))
+  }
+  rm(.repos, .current)
+  if (exists(".cran", inherits = FALSE)) rm(.cran)
+})
 
 if (requireNamespace("data.table", quietly = TRUE)) {
   data.table::setDTthreads(threads = .n_threads)
@@ -419,7 +524,7 @@ if (requireNamespace("data.table", quietly = TRUE)) {
     thesis  = c("Arial Unicode MS", "Hiragino Sans GB",
                 "PingFang SC", "Heiti SC", "Songti SC",
                 "Noto Sans SC", "Source Han Sans VF"),
-    sci     = c("Songti SC", "Arial Unicode MS", "Hiragino Sans GB",
+    sci     = c("Arial Unicode MS", "Hiragino Sans GB", "Songti SC",
                 "PingFang SC", "Heiti SC",
                 "Noto Sans SC", "Source Han Sans VF"),
     fallback= c("Arial Unicode MS", "Hiragino Sans GB", "PingFang SC", "Heiti SC")
@@ -716,7 +821,7 @@ RPROF_EOF
 # 3. Python mpl_setup.py
 # --------------------------------------------------------------
 write_pymod() {
-  w "$PY_MOD" <<'PY_EOF'
+  w "$PY_MOD" <<PY_EOF
 """matplotlib 中文绘图助手  ${SCRIPT_VERSION}
 
 用法（建议在 import matplotlib.pyplot 之前 import 本模块）：
@@ -746,6 +851,7 @@ write_pymod() {
 from __future__ import annotations
 
 import os
+import tempfile
 from pathlib import Path
 
 import matplotlib
@@ -930,15 +1036,21 @@ def check_cn() -> bool:
     with warnings.catch_warnings(record=True) as caught:
         warnings.simplefilter("always")
         fig, ax = plt.subplots(figsize=(6, 3))
-        ax.plot([1, 2, 3], [1, 2, 3])
-        ax.set_title("中文标题：经济增速（%）", fontweight="bold")
-        ax.set_xlabel("年份（年）")
-        ax.set_ylabel("增速（%）")
-        ax.annotate("注释 −1.5", (2, 1.5))
-        tmp = OUTDIR / "_cn_check.png"
-        fig.savefig(tmp, dpi=120)
-        plt.close(fig)
-        tmp.unlink(missing_ok=True)
+        tmp = None
+        try:
+            ax.plot([1, 2, 3], [1, 2, 3])
+            ax.set_title("中文标题：经济增速（%）", fontweight="bold")
+            ax.set_xlabel("年份（年）")
+            ax.set_ylabel("增速（%）")
+            ax.annotate("注释 −1.5", (2, 1.5))
+            fd, tmp_name = tempfile.mkstemp(prefix=".cn-check-", suffix=".png", dir=OUTDIR)
+            os.close(fd)
+            tmp = Path(tmp_name)
+            fig.savefig(tmp, dpi=120)
+        finally:
+            plt.close(fig)
+            if tmp is not None:
+                tmp.unlink(missing_ok=True)
 
     missing = [str(w.message) for w in caught
                if "missing from font" in str(w.message).lower()
@@ -1163,6 +1275,8 @@ program define gsp
 end
 ADO_GSP
 
+    write_ado_manifest
+
     ok "已写 3 个 ado：$(basename "$ado_dir")/{gsp,set_plot_dir,freemem}.ado"
   fi
 
@@ -1249,6 +1363,7 @@ rc_extract_foreign() {
 }
 
 write_shell_rc() {
+  [[ -n "$RC" ]] || { warn "跳过 shell 启动文件：当前生成内容仅支持 zsh"; return 0; }
   [[ "$MODE" == dry-run ]] && { info "[DRY] 更新 ${RC}"; return; }
   touch "$RC"
 
@@ -1725,8 +1840,9 @@ write_pth() { # 把 python 目录注册进当前解释器的 site-packages
 # --------------------------------------------------------------
 do_install() {
   MODE="${1:-install}"
-  info "中文字体: ${CN_FONT} | DPI: ${PLOT_DPI} | 线程: ${PLOT_THREADS}"
+  # 首条 install 日志也写入 ${CFG}/logs/setup.log；首次部署时先建目录，避免误报。
   ensure_dirs
+  info "中文字体: ${CN_FONT} | DPI: ${PLOT_DPI} | 线程: ${PLOT_THREADS}"
   snapshot
 
   write_matplotlibrc
@@ -1823,7 +1939,7 @@ scatter price mpg, title("中文：汽车价格") ytitle("价格（元）") name
 gsp g1, out(_chk)
 log close
 EOD
-    ( cd "$td" && "$STATA" -b do t.do >/dev/null 2>&1 || true )
+    ( cd "$td" && "$STATA" -b 'do' t.do >/dev/null 2>&1 || true )
     if [[ -f "${td}/figures/_chk.png" && -f "${td}/figures/_chk.pdf" ]]; then
       ok "  中文出图 PASS（PNG + PDF 均已生成，含 clear all 场景）"
     else
@@ -1832,7 +1948,13 @@ EOD
       fail=1
     fi
     rm -rf "$td"
-    _TMP_DIRS=("${_TMP_DIRS[@]/$td}")   # 已清，从登记表移除
+    # 已清，从登记表移除：数组下标替换只会把匹配项变成空串，不会删除元素，
+    # 这里显式重建数组，保留所有非空且不等于本临时目录的项。
+    local _new=()
+    for _d in "${_TMP_DIRS[@]:-}"; do
+      [[ -n "$_d" && "$_d" != "$td" ]] && _new+=("$_d")
+    done
+    _TMP_DIRS=("${_new[@]:-}")
   fi
 
   echo ""
@@ -1914,10 +2036,14 @@ do_deps() {
 # --------------------------------------------------------------
 do_uninstall_common() {
   [[ "$MODE" == dry-run ]] && { info "[DRY] 清理 shell rc / .Renviron / 软链"; return; }
-  strip_block "$RC" "$DEV_S"  "$DEV_E"  || warn "${RC} 的通用开发环境块未清理"
-  strip_block "$RC" "$MARK_S" "$MARK_E" || warn "${RC} 的绘图配置块未清理"
-  strip_block "$RC" "$PY_S"   "$PY_E"   || warn "${RC} 的 Python 块未清理"
-  ok "已清理 ${RC}"
+  if [[ -n "$RC" ]]; then
+    strip_block "$RC" "$DEV_S"  "$DEV_E"  || warn "${RC} 的通用开发环境块未清理"
+    strip_block "$RC" "$MARK_S" "$MARK_E" || warn "${RC} 的绘图配置块未清理"
+    strip_block "$RC" "$PY_S"   "$PY_E"   || warn "${RC} 的 Python 块未清理"
+    ok "已清理 ${RC}"
+  else
+    warn "跳过 shell 启动文件清理：当前生成内容仅支持 zsh"
+  fi
 
   strip_block "$RENV" "$RE_S" "$RE_E" || warn "${RENV} 标记块未清理"
   # 同 write_renviron：grep 退出码 >1 才是真错误，绝不能当成空结果去覆盖原文件
@@ -1944,12 +2070,33 @@ do_uninstall_common() {
     [[ -n "$sp" && -f "${sp}/plot_config.pth" ]] && { rm -f "${sp}/plot_config.pth"; ok "已移除 .pth"; }
   fi
 
-  # ado 文件装在 Stata 的 personal 目录，不属于配置目录，必须单独清
+  # 仅清理校验值与安装清单一致的 ado；修改过或未登记的文件保留。
   local ado_dir="${HOME}/Documents/Stata/ado/personal"
-  local a
-  for a in gsp set_plot_dir freemem; do
-    [[ -f "${ado_dir}/${a}.ado" ]] && { rm -f "${ado_dir}/${a}.ado"; ok "已移除 ado ${a}.ado"; }
-  done
+  local a expected install_snap current backup
+  if [[ -f "${BAK}/managed-ado.tsv" ]]; then
+    while IFS=$'\t' read -r a expected install_snap; do
+      [[ "$a" =~ ^(gsp|set_plot_dir|freemem)$ ]] || continue
+      current="${ado_dir}/${a}.ado"
+      if [[ ! -f "$current" || -L "$current" ]]; then
+        warn "未触碰缺失或符号链接 ado：${current}"
+        continue
+      fi
+      if [[ "$(shasum -a 256 "$current" | awk '{print $1}')" != "$expected" ]]; then
+        warn "ado 已被修改，保留：${current}"
+        continue
+      fi
+      backup="${install_snap}/${a}.ado"
+      if [[ -f "$backup" && ! -L "$backup" ]]; then
+        cp -p "$backup" "$current" || { err "恢复 ado 失败：${current}"; return 1; }
+        ok "已恢复原 ado ${a}.ado"
+      else
+        rm -f "$current"
+        ok "已移除脚本生成的 ado ${a}.ado"
+      fi
+    done < "${BAK}/managed-ado.tsv"
+  else
+    warn "没有 ado 所有权清单，保留 Stata personal 目录中的所有 ado"
+  fi
 }
 
 do_uninstall() {
@@ -1977,7 +2124,13 @@ do_purge() {
   # 备份必须放在 CFG 外面，否则下一步 rm -rf 把它一起删了
   if [[ "$MODE" != dry-run ]]; then
     local out="${HOME}/Documents/plot-config-backup-${TS}"
-    [[ -d "$CFG" ]] && { cp -Rp "$CFG" "$out"; ok "已备份到 ${out}"; }
+    if [[ -d "$CFG" ]]; then
+      if ! cp -Rp "$CFG" "$out"; then
+        err "备份失败：${out}；已中止，未删除 ${CFG}"
+        return 1
+      fi
+      ok "已备份到 ${out}"
+    fi
   fi
   do_uninstall_common
   if [[ "$MODE" == dry-run ]]; then info "[DRY] rm -rf ${CFG}"

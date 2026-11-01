@@ -67,7 +67,7 @@ R 自检: PASS
   ggsave_png     OK
   ggsave_pdf     OK
 Python 自检: PASS
-  [mpl_setup] check_cn: 字体=PingFang SC 缺字警告=0
+  [mpl_setup] check_cn: 字体=Arial Unicode MS 缺字警告=0
 Stata 自检: PASS
 [OK] 全部通过：三套工具链中文均无豆腐块
 ```
@@ -89,7 +89,7 @@ bash setup_plot.sh purge       # 彻底清理（先自动备份到外部）
 - **零配置**：装完直接在 R / Python / Stata 里画图就是中文，不用每次手动设字体
 - **高清**：默认 **300 DPI**（R 9×6in → 2700×1800，Python 9×6in → 2734×1834）
 - **统一字体**：三套工具链默认同为 `Arial Unicode MS`（中文 + 全部数学符号都覆盖），文件互相对得上
-- **自包含**：`setup_plot.sh` 是 1936 行单文件，把 6 个配置都内嵌了，拷到任何 Mac 上都能重建
+- **自包含**：`setup_plot.sh` 是单文件，把 6 个配置都内嵌了，拷到任何 Mac 上都能重建
 - **可回滚**：改动前自动备份，`purge` 前先备份到配置目录**外部**，避免自杀式删除
 - **能自检**：`check` 用真实渲染验证，不靠"看起来对"
 
@@ -196,11 +196,11 @@ alias mycmd='echo hi'
 
 > 所以本项目**保持 `pdf.fonttype` 为默认 3**。设 42 时 Ghostscript / pymupdf / LaTeX 链路会丢字，只有 macOS 原生 Quartz 渲染正常。
 
-### 为什么 PNG 用 PingFang，PDF 路径要特别小心
+### 为什么 PNG 比 PDF 安全
 
-- **ragg（PNG）** 有自动字形回退，基座是英文字体也能正常渲染中文 → PNG 天然安全
+- **ragg（PNG）** 有自动字形回退，基座是英文字体也能正常渲染中文 → PNG 天然安全；本项目仍统一配置 `Arial Unicode MS`，保证 PNG 与 PDF 字体一致
 - **cairo（PDF）** 精确匹配字体，缺字就画框 → PDF 是重灾区
-- **PingFang SC 没有真 Bold**（最粗 600），标题粗体会退到 600，视觉可接受但不是 700
+- **PingFang SC 没有真 Bold**（最粗 600），且缺数学符号，只作为纯中文场景的备选
 
 ### 字体在 macOS 上的真实位置（踩坑记录）
 
@@ -298,7 +298,7 @@ alias mycmd='echo hi'
 
 ```
 plot-cjk-config/
-├── setup_plot.sh              # 一键部署脚本（自包含，1936 行）
+├── setup_plot.sh              # 一键部署脚本（自包含）
 ├── R/
 │   └── .Rprofile              # R 绘图 + 性能配置（软链到 ~/.Rprofile）
 ├── matplotlib/
@@ -397,9 +397,10 @@ rm -rf ~/.matplotlib/fontlist-*.json
 或直接 `import mpl_setup`（它会主动扫描并注册）。
 
 **Q: 为什么不用思源黑体 / 更纱黑体？**
-装了也能用，但本项目的默认选择是**系统自带、零安装**。
-思源黑体可变字体只有 weight 250，Noto Sans SC 只有 100，都会让标题异常纤细。
-PingFang 覆盖 100–600 最稳。
+装了也能用，但本项目的默认选择是**系统自带、零安装、符号覆盖优先**。
+思源黑体可变字体只有 weight 250，Noto Sans SC 只有 100，都会让标题异常纤细；
+PingFang SC 字形和字重更好，但缺 `ρ √ → ∞ ∂ ∈ ∪ ∩` 等数学符号。统计图优先用
+`Arial Unicode MS`，纯中文场景才考虑切回 PingFang。
 
 **Q: Linux / Windows 能用吗？**
 不能。脚本开头有平台检查，只支持 macOS。Linux 需要改字体名（Noto Sans CJK）并装 `fontconfig`。

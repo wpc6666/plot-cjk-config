@@ -8,9 +8,9 @@
 #      ragg 本身对缺失字形会自动回退，不需要手动指定字体链。
 #   2. pdf() 重定向到 cairo_pdf(family=cn_font)。默认 pdf() 只嵌 Helvetica，
 #      中文全部变豆腐块，且报 "conversion failure ... in 'mbcsToSbcs'"。
-#   3. 中文字体优先 PingFang SC。Noto Sans SC 实测 weight=100（Thin）、
-#      Source Han Sans VF 实测 weight=250（ExtraLight），放首位会发烧、
-#      且粗体完全失效。PingFang SC 覆盖 100-600，粗细正常。
+#   3. 中文字体优先 Arial Unicode MS，保证统计图中的数学符号有字形；
+#      PingFang SC / Heiti SC 作为中文和字重候选。Noto Sans SC 实测 weight=100
+#      （Thin）、Source Han Sans VF 实测 weight=250（ExtraLight），不优先使用。
 #   4. 【v15.0】PingFang SC 没有收录 ρ √ → ∞ ≤ ≥ ± × 等数学符号！
 #      而 R 的 Quartz/cairo 设备【不做逐字形回退】——一段文字用哪个
 #      family，该字体缺的字就直接画空心方框，不会自动换字体补。
@@ -43,6 +43,20 @@ options(scipen = 999)
   max(1L, nc - 1L)
 })
 options(Ncpus = .n_threads)
+
+# ---------------- CRAN 镜像源（启动阶段不联网，避免拖慢 R 启动） ----------------
+# 由 DevConfig/mirrors.sh 与本文件共同持有：setup_plot.sh 会整体重写本文件，
+# 所以国内源必须写在这里，而不是事后追加 —— 否则每次重建都被冲掉。
+local({
+  .repos <- getOption("repos")
+  .current <- unname(.repos["CRAN"])
+  if (!length(.current) || is.na(.current) || .current == "@CRAN@") {
+    .cran <- Sys.getenv("DEVCONFIG_CRAN_MIRROR", "https://mirrors.tuna.tsinghua.edu.cn/CRAN/")
+    options(repos = c(CRAN = .cran))
+  }
+  rm(.repos, .current)
+  if (exists(".cran", inherits = FALSE)) rm(.cran)
+})
 
 if (requireNamespace("data.table", quietly = TRUE)) {
   data.table::setDTthreads(threads = .n_threads)
@@ -83,7 +97,7 @@ if (requireNamespace("data.table", quietly = TRUE)) {
     thesis  = c("Arial Unicode MS", "Hiragino Sans GB",
                 "PingFang SC", "Heiti SC", "Songti SC",
                 "Noto Sans SC", "Source Han Sans VF"),
-    sci     = c("Songti SC", "Arial Unicode MS", "Hiragino Sans GB",
+    sci     = c("Arial Unicode MS", "Hiragino Sans GB", "Songti SC",
                 "PingFang SC", "Heiti SC",
                 "Noto Sans SC", "Source Han Sans VF"),
     fallback= c("Arial Unicode MS", "Hiragino Sans GB", "PingFang SC", "Heiti SC")
