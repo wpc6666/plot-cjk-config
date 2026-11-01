@@ -1,5 +1,7 @@
 # macOS 中文绘图配置 · R / Python / Stata
 
+> 当前脚本版本：**v15.1**（2026-11-01）
+
 > 一键部署中文字体与高清出图环境 | 彻底解决 macOS 上画图中文变豆腐块（□□□）
 
 [![Platform: macOS](https://img.shields.io/badge/Platform-macOS-000000.svg?logo=apple)](https://www.apple.com/macos/)

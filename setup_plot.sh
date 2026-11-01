@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ==============================================================
-#  macOS 中文绘图 + 性能配置 + 终端环境 · 一键部署  v15.0
+#  macOS 中文绘图 + 性能配置 + 终端环境 · 一键部署  v15.1
 #
 #  目标：① R / Python / Stata 任何输出格式都不出现中文豆腐块
 #        ② 默认 300 DPI 高清输出
@@ -26,7 +26,7 @@
 # ==============================================================
 set -euo pipefail
 
-readonly SCRIPT_VERSION="v15.0"
+readonly SCRIPT_VERSION="v15.1"
 # 配置目录：默认 ~/Documents/plot-config。
 # 允许用 PLOT_CFG 覆盖——DevConfig 仓库用它把「配置源」直接指向仓库本身，
 # 这样新电脑 clone 后部署的是仓库里的配置，而不是凭空生成一份。
@@ -426,7 +426,7 @@ EOF
 write_rprofile() {
   w "$R_PROF" <<'RPROF_EOF'
 # ==============================================================
-#  R .Rprofile — 中文绘图 + 性能配置  v15.0
+#  R .Rprofile — 中文绘图 + 性能配置  v15.1
 #  由 setup_plot.sh 生成。备份在 ~/Documents/plot-config/backup/
 #
 #  四条核心修复（全部是实测出来的 bug，不是猜测）：

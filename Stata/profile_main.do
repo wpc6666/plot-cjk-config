@@ -1,6 +1,6 @@
 * ==============================================================
-*  profile_main.do — Stata 性能 + 出图配置  v15.0
-*  由 v15.0 生成，备份在 ~/Documents/plot-config/backup/
+*  profile_main.do — Stata 性能 + 出图配置  v15.1
+*  由 v15.1 生成，备份在 ~/Documents/plot-config/backup/
 *  字体设置在 plot_stata.do（由 profile.do 在其后加载）
 * ==============================================================
 
@@ -47,5 +47,5 @@ if _rc {
     capture mkdir "$PLOT_OUTDIR"
 }
 
-display "[OK] profile_main.do 加载完成（v15.0）"
+display "[OK] profile_main.do 加载完成（v15.1）"
 display "[INFO] PLOT_OUTDIR = $PLOT_OUTDIR"

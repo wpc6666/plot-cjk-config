@@ -1,4 +1,4 @@
-"""matplotlib 中文绘图助手  v15.0
+"""matplotlib 中文绘图助手  v15.1
 
 用法（建议在 import matplotlib.pyplot 之前 import 本模块）：
 
