@@ -45,7 +45,7 @@ options(scipen = 999)
 options(Ncpus = .n_threads)
 
 # ---------------- CRAN 镜像源（启动阶段不联网，避免拖慢 R 启动） ----------------
-# 由 DevConfig/mirrors.sh 与本文件共同持有：setup_plot.sh 会整体重写本文件，
+# 本文件与安装脚本共同持有：setup_plot.sh 会整体重写本文件，
 # 所以国内源必须写在这里，而不是事后追加 —— 否则每次重建都被冲掉。
 local({
   .repos <- getOption("repos")

@@ -28,7 +28,7 @@ set -euo pipefail
 
 readonly SCRIPT_VERSION="v15.1"
 # 配置目录：默认 ~/Documents/plot-config。
-# 允许用 PLOT_CFG 覆盖——DevConfig 仓库用它把「配置源」直接指向仓库本身，
+# 允许用 PLOT_CFG 覆盖——可直接把「配置源」指向仓库副本本身，
 # 这样新电脑 clone 后部署的是仓库里的配置，而不是凭空生成一份。
 readonly CFG="${PLOT_CFG:-${HOME}/Documents/plot-config}"
 readonly MPL_DIR="${CFG}/matplotlib"
@@ -294,7 +294,7 @@ snapshot() {
     cp -p "${BAK}/managed-ado.tsv" "${SNAP}/managed-ado.tsv" || { err "备份失败：${BAK}/managed-ado.tsv"; return 1; }
   fi
   # 【删除守卫】这里原本会自动 rm -rf 掉超过 KEEP_BAK 份的旧备份。
-  # 按用户 AGENTS.md 的「严禁自主推断并执行永久删除」，改为【只提示不删除】：
+  # 遵循「不擅自永久删除」的安全原则，这里【只提示不删除】：
   # 备份是安全网，安全网不该自己动手剪。要清理由用户手动确认后执行。
   # 注意：macOS 是 BSD head，不支持 `head -n -N`（GNU 写法会报 illegal line count）。
   local old n
@@ -472,7 +472,7 @@ options(scipen = 999)
 options(Ncpus = .n_threads)
 
 # ---------------- CRAN 镜像源（启动阶段不联网，避免拖慢 R 启动） ----------------
-# 由 DevConfig/mirrors.sh 与本文件共同持有：setup_plot.sh 会整体重写本文件，
+# 本文件与安装脚本共同持有：setup_plot.sh 会整体重写本文件，
 # 所以国内源必须写在这里，而不是事后追加 —— 否则每次重建都被冲掉。
 local({
   .repos <- getOption("repos")
@@ -2109,7 +2109,7 @@ do_uninstall() {
 do_purge() {
   MODE="purge"
   # 【删除守卫】purge 会 rm -rf 掉整个配置目录，属于不可逆操作。
-  # 按用户 AGENTS.md 的要求，执行前必须让用户明确确认具体路径。
+  # 执行前必须让用户明确确认具体路径。
   # dry-run 不需要确认（反正不落盘）。
   if [[ "$MODE" != dry-run ]]; then
     warn "即将删除的目录：${CFG}"
